@@ -5,3 +5,4 @@ __pycache__
 dist 
 build 
 Backend/ml/market_price_model.pkl 
+Backend/ml/market_price_model.pkl 
