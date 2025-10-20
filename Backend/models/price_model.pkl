@@ -1,0 +1,26 @@
+import pickle
+import numpy as np
+
+# Load scikit-learn model
+with open("models/price_model.pkl", "rb") as f:
+    price_model = pickle.load(f)
+
+# API route
+@app.route("/api/predict-price", methods=["POST"])
+def predict_price():
+    data = request.get_json(force=True)
+    crop = data.get("crop")
+    season = data.get("season")
+    region = data.get("region")
+    
+    # Example: encode features (you can adjust based on your model)
+    features = np.array([[crop, season, region]])  # Replace with proper preprocessing
+    
+    predicted_price = price_model.predict(features)[0]
+    
+    return jsonify({
+        "crop": crop,
+        "season": season,
+        "region": region,
+        "predicted_price": round(predicted_price, 2)
+    })

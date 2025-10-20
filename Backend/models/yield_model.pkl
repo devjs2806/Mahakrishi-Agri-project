@@ -1,0 +1,27 @@
+import pickle
+import numpy as np
+
+# Load scikit-learn model
+with open("models/yield_model.pkl", "rb") as f:
+    yield_model = pickle.load(f)
+
+# API route
+@app.route("/api/predict-yield", methods=["POST"])
+def predict_yield():
+    data = request.get_json(force=True)
+    soil_type = data.get("soil_type")
+    season = data.get("season")
+    crop = data.get("crop")
+    rainfall = float(data.get("rainfall", 100))  # Example input
+    
+    # Example feature array (adjust based on your trained model)
+    features = np.array([[soil_type, season, crop, rainfall]])
+    
+    predicted_yield = yield_model.predict(features)[0]
+    
+    return jsonify({
+        "soil_type": soil_type,
+        "season": season,
+        "crop": crop,
+        "predicted_yield": round(predicted_yield, 2)
+    })

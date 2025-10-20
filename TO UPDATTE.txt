@@ -1,0 +1,6 @@
+* soil type , water retention -- on the basis of location
+* ml model for price prediction
+* connect pest detection module
+
+
+-- change the dashboard to give recommendation and in crop recommendation proper

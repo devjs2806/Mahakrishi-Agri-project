@@ -1,0 +1,206 @@
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+import numpy as np
+import subprocess
+import logging
+import sqlite3
+import os
+
+app = Flask(__name__)
+CORS(app)  # Allow frontend (React) to connect
+
+# Logging
+logging.basicConfig(level=logging.INFO)
+
+# ===============================
+# SQLite Database Setup
+# ===============================
+MANDI_DB = os.path.join(os.path.dirname(__file__), "mandi_prices.db")
+CROP_DB = os.path.join(os.path.dirname(__file__), "crop_recommendation.db")
+
+# ---------- Mandi Prices ----------
+def init_mandi_db():
+    conn = sqlite3.connect(MANDI_DB)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS mandi_prices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            crop TEXT NOT NULL,
+            price REAL NOT NULL,
+            unit TEXT DEFAULT 'quintal',
+            state TEXT DEFAULT 'Maharashtra'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def save_prices_to_db(prices, state="Maharashtra"):
+    conn = sqlite3.connect(MANDI_DB)
+    c = conn.cursor()
+    for p in prices:
+        c.execute("""
+            INSERT INTO mandi_prices (crop, price, unit, state)
+            VALUES (?, ?, ?, ?)
+        """, (p["crop"], p["price"], p["unit"], state))
+    conn.commit()
+    conn.close()
+
+def read_prices_from_db(state="Maharashtra"):
+    conn = sqlite3.connect(MANDI_DB)
+    c = conn.cursor()
+    c.execute("SELECT crop, price, unit FROM mandi_prices WHERE state=?", (state,))
+    rows = c.fetchall()
+    conn.close()
+    return [{"crop": r[0], "price": r[1], "unit": r[2]} for r in rows]
+
+def populate_default_prices():
+    existing = read_prices_from_db()
+    if not existing:
+        default_prices = [
+            {"crop": "Wheat", "price": 2200, "unit": "quintal"},
+            {"crop": "Rice", "price": 3200, "unit": "quintal"},
+            {"crop": "Soybean", "price": 4500, "unit": "quintal"},
+            {"crop": "Cotton", "price": 5000, "unit": "quintal"},
+            {"crop": "Sugarcane", "price": 2800, "unit": "quintal"},
+            {"crop": "Turmeric", "price": 12000, "unit": "quintal"},
+            {"crop": "Groundnut", "price": 5200, "unit": "quintal"},
+        ]
+        save_prices_to_db(default_prices)
+
+init_mandi_db()
+populate_default_prices()
+
+# ---------- Crop Recommendation ----------
+def init_crop_db():
+    conn = sqlite3.connect(CROP_DB)
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS crop_recommendations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            soil_type TEXT NOT NULL,
+            season TEXT NOT NULL,
+            region TEXT NOT NULL,
+            crop TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def get_crop_recommendations(soil, season, region):
+    conn = sqlite3.connect(CROP_DB)
+    c = conn.cursor()
+    query = """
+        SELECT crop FROM crop_recommendations
+        WHERE soil_type = ? AND season = ? AND region = ?
+    """
+    c.execute(query, (soil, season, region))
+    rows = c.fetchall()
+    conn.close()
+    return [row[0] for row in rows]
+
+init_crop_db()
+
+# ===============================
+# Utility for Ollama Chat
+# ===============================
+def query_ollama(prompt: str) -> str:
+    try:
+        result = subprocess.run(
+            ["ollama", "run", "llama3"],  # replace with your ollama model
+            input=prompt.encode("utf-8"),
+            capture_output=True,
+            check=True
+        )
+        return result.stdout.decode("utf-8").strip()
+    except Exception as e:
+        logging.warning("Ollama call failed: %s", str(e))
+        return f"⚠️ Ollama chatbot is unavailable: {str(e)}"
+
+# ===============================
+# Routes
+# ===============================
+@app.route("/")
+def home():
+    return jsonify({"message": "✅ MahaKrishi Backend is running 🚜"})
+
+@app.route("/api/mandi-prices", methods=["GET"])
+def get_mandi_prices():
+    state = request.args.get("state", "Maharashtra")
+    prices = read_prices_from_db(state)
+    return jsonify({"mandi_prices": prices})
+
+@app.route("/api/weather", methods=["GET"])
+def get_weather():
+    return jsonify({
+        "location": "Pune, Maharashtra",
+        "forecast": [
+            {"day": "Monday", "temp": 28, "condition": "Sunny"},
+            {"day": "Tuesday", "temp": 30, "condition": "Cloudy"},
+        ]
+    })
+
+@app.route("/api/recommend-crops", methods=["POST"])
+def recommend_crops():
+    data = request.get_json(force=True)
+    soil = data.get("soil_type")
+    season = data.get("season")
+    region = data.get("region")
+
+    crops = get_crop_recommendations(soil, season, region)
+    return jsonify({"soil_type": soil, "season": season, "region": region, "recommended_crops": crops})
+
+@app.route("/api/fertilizer-recommendation", methods=["POST"])
+def get_fertilizer_recommendation():
+    data = request.get_json(force=True)
+    crop = data.get("crop", "Wheat")
+    recommendations = {
+        "Wheat": "Urea + DAP",
+        "Rice": "Urea + Potash",
+        "Soybean": "Phosphorus + Potash",
+    }
+    return jsonify({"crop": crop, "recommended_fertilizers": recommendations.get(crop, "General NPK")})
+
+@app.route("/api/predict-pest", methods=["POST"])
+def predict_pest():
+    if "image" not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+    image = request.files["image"]
+    labels = ["No Pest", "Pest Type 1", "Pest Type 2"]
+    result = np.random.choice(labels)
+    return jsonify({"pest_detected": result, "filename": image.filename})
+
+@app.route("/api/predict-price", methods=["POST"])
+def predict_price():
+    data = request.get_json(force=True)
+    crop = data.get("crop", "Wheat")
+    season = data.get("season", "Kharif")
+    region = data.get("region", "Maharashtra")
+    predicted_price = np.random.randint(2000, 5000)
+    return jsonify({"crop": crop, "season": season, "region": region, "predicted_price": round(predicted_price, 2)})
+
+@app.route("/api/predict-yield", methods=["POST"])
+def predict_yield():
+    data = request.get_json(force=True)
+    soil_type = data.get("soil_type", "Alluvial")
+    season = data.get("season", "Kharif")
+    crop = data.get("crop", "Wheat")
+    rainfall = float(data.get("rainfall", 100))
+    predicted_yield = np.random.uniform(1, 5) * 100
+    return jsonify({"soil_type": soil_type, "season": season, "crop": crop, "predicted_yield": round(predicted_yield, 2)})
+
+@app.route("/chat", methods=["POST"])
+def chatbot():
+    data = request.get_json(force=True)
+    user_message = data.get("message", "")
+    reply = query_ollama(user_message)
+    return jsonify({"reply": reply})
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Route not found"}), 404
+
+# ===============================
+# Run server
+# ===============================
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=True)

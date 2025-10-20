@@ -1,0 +1,34 @@
+import torch
+from torchvision import transforms
+from PIL import Image
+
+# Load PyTorch model
+pest_model = torch.load("models/pest_model.pth")
+pest_model.eval()  # Set model to evaluation mode
+
+# Preprocess image function
+def preprocess_image(image):
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+    ])
+    img = Image.open(image).convert("RGB")
+    return transform(img).unsqueeze(0)  # Add batch dimension
+
+# API route
+@app.route("/api/predict-pest", methods=["POST"])
+def predict_pest():
+    if "image" not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
+    image = request.files["image"]
+    tensor = preprocess_image(image)
+    
+    with torch.no_grad():
+        output = pest_model(tensor)
+        _, predicted = torch.max(output, 1)
+    
+    # Example labels (replace with your classes)
+    labels = ["No Pest", "Pest Type 1", "Pest Type 2"]
+    result = labels[predicted.item()]
+    
+    return jsonify({"pest_detected": result})

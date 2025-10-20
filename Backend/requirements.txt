@@ -1,0 +1,13 @@
+Flask
+Flask-Cors
+Flask-SQLAlchemy
+pymysql
+requests
+torch
+torchvision
+scikit-learn
+pandas
+numpy
+Pillow
+python-dotenv
+ultralytics

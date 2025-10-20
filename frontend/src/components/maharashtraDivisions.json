@@ -1,0 +1,26 @@
+[
+  {
+    "id": "konkan",
+    "name": "Konkan",
+    "path": "M100 200 L200 180 L220 300 L150 350 Z",
+    "districts": ["Thane", "Raigad", "Ratnagiri", "Sindhudurg", "Mumbai"],
+    "soilTypes": ["Laterite", "Red soil"],
+    "rainfall": 3000
+  },
+  {
+    "id": "pune",
+    "name": "Pune",
+    "path": "M220 300 L300 280 L350 400 L280 420 Z",
+    "districts": ["Pune", "Satara", "Solapur"],
+    "soilTypes": ["Black cotton soil"],
+    "rainfall": 1200
+  },
+  {
+    "id": "nashik",
+    "name": "Nashik",
+    "path": "M200 150 L300 130 L320 250 L240 270 Z",
+    "districts": ["Nashik", "Ahmednagar", "Dhule", "Jalgaon", "Nandurbar"],
+    "soilTypes": ["Black soil", "Alluvial"],
+    "rainfall": 800
+  }
+]

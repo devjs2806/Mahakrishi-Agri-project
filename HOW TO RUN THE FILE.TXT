@@ -1,0 +1,14 @@
+cd backend ------> uvicorn app.main:app --reload
+
+cd backend ----> python app.py
+
+cd frontend -----> npm start
+ollama run mistral
+
+
+6bceb6d03d7a6e1ec0c36473747b61c90083cd72669308bfc623fceab3b1b35a 
+ceda key valid till 7th october.
+
+
+python init_mandi_db.py
+---db 
